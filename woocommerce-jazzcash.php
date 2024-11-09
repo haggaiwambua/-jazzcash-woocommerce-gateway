@@ -6,7 +6,7 @@ class JazzCash extends WC_Payment_Gateway
     // Setup our Gateway's id, description and other values
     function __construct()
     {
-		//file_put_contents('abc.txt', "__construct called".PHP_EOL, FILE_APPEND);
+
         // The global ID for this Payment method
         $this->id = "jazzcash";
 
@@ -26,6 +26,9 @@ class JazzCash extends WC_Payment_Gateway
         // Bool. Can be set to true if you want payment fields to show on the checkout
         // if doing a direct integration, which we are doing in this case
         $this->has_fields = true;
+
+        // Supports the default credit card form
+        //$this->supports = array( 'default_credit_card_form' );
 
         // This basically defines your settings which are then loaded with init_settings()
         $this->init_form_fields();
@@ -53,19 +56,16 @@ class JazzCash extends WC_Payment_Gateway
         }
 		
 		
-		//executes a response method
-		add_action( 'woocommerce_api_jazzcashresponse', array($this, 'jazzcash_response'));
+		//executes a calback method
+		add_action( 'woocommerce_api_jazzcash', array($this, 'callback_handler'));
 		
-		add_action('woocommerce_receipt_jazzcash', array($this, 'receipt_page'));
-		//file_put_contents('abc.txt', "woocommerce_receipt_jazzcash bind end, order: ||".$this->id."|| end".PHP_EOL, FILE_APPEND);
+		add_action('woocommerce_receipt_jazzcash', array(&$this, 'receipt_page'));
 		
-		//file_put_contents('abc.txt', "__construct end".PHP_EOL, FILE_APPEND);
     } // End __construct()
 
     // Build the administration fields for this specific Gateway
     public function init_form_fields()
     {
-			//file_put_contents('abc.txt', "init_form_fields called".PHP_EOL, FILE_APPEND);
         $this->form_fields = array(
             'enabled' => array(
                 'title' => __('Enable / Disable', 'jazzcash'),
@@ -78,7 +78,7 @@ class JazzCash extends WC_Payment_Gateway
                 'type' => 'text',
                 'desc_tip' => __('Payment title the customer will see during the checkout process.',
                     'jazzcash'),
-                'default' => __('JazzCash', 'jazzcash')
+                'default' => __('JazzCash', 'jazzcash'),
                 ),
             'description' => array(
                 'title' => __('Payment Gateway Description', 'jazzcash'),
@@ -86,45 +86,36 @@ class JazzCash extends WC_Payment_Gateway
                 'desc_tip' => __('Payment Gateway description', 'jazzcash'),
                 'default' => __('Pay freely using JazzCash.', 'jazzcash'),
                 'css' => 'max-width:350px;'),
-            'merchantID' => array(
-                'title' => __('Merchant ID', 'jazzcash'),
+            'pp_MerchantID' => array(
+                'title' => __('Merchant Code', 'jazzcash'),
                 'type' => 'text',
-                'desc_tip' => __('Merchant ID', 'jazzcash')
+                'desc_tip' => __('Merchant Code', 'jazzcash'),
                 ),
-            'password' => array(
+            'pp_Password' => array(
                 'title' => __('Password', 'jazzcash'),
                 'type' => 'password',
-                'desc_tip' => __('Password.','jazzcash')
+                'desc_tip' => __('Merchant Password.','jazzcash'),
                 ),
-            'returnURL' => array(
+            'pp_ReturnURL' => array(
                 'title' => __('Return URL', 'jazzcash'),
                 'type' => 'text',
                 'desc_tip' => __('Merchant Url for returning Transactions','jazzcash')
                 ),
-			'expiryHours' => array(
-                'title' => __('Transaction Expiry (Hours)', 'jazzcash'),
+			'pp_ExpiryDays' => array(
+                'title' => __('Transaction Expiry Days', 'jazzcash'),
                 'type' => 'number',
-                'desc_tip' => __('Transaction Expiry (Hours)', 'jazzcash'),
-				'default' => __('12', 'jazzcash')
+                'desc_tip' => __('Transaction Expiry Days', 'jazzcash'),
                 ),
-            'integritySalt' => array(
+            'pp_SecureHash' => array(
                 'title' => __('Integrty Salt', 'jazzcash'),
                 'type' => 'password',
-                'desc_tip' => __('Integrty Salt', 'jazzcash')
+                'desc_tip' => __('Integrty Salt', 'jazzcash'),
                 ),
-			'actionURL' => array(
+			'pp_posturl' => array(
                 'title' => __('Transaction Post URL', 'jazzcash'),
                 'type' => 'text',
-                'desc_tip' => __('URL to post transaction', 'jazzcash')
-                ),
-			'validateHash' => array(
-				'title' => __('Validate Hash', 'jazzcash'),
-				'label' => __('Validate Hash', 'jazzcash'),
-				'type' => 'checkbox',
-				'default' => 'yes',
-				));
-				
-				//file_put_contents('abc.txt', "init_form_fields ended.".PHP_EOL, FILE_APPEND);
+                'desc_tip' => __('URL to post transaction', 'jazzcash'),
+                ));
     }
 
 	
@@ -132,8 +123,7 @@ class JazzCash extends WC_Payment_Gateway
      * Receipt Page
      **/
     function receipt_page($order){
-	//file_put_contents('abc.txt', "receipt_page called".PHP_EOL, FILE_APPEND);
-        echo '<p>'.__('Please wait while your are being redirected to JazzCash...', 'jazzcash').'</p>';
+        echo '<p>'.__('Thank you for your order, you will be redirected to JazzCash website shortly.', 'jazzcash').'</p>';
         echo $this -> generate_jazzcash_form($order);
     }
 	
@@ -141,130 +131,120 @@ class JazzCash extends WC_Payment_Gateway
      * Generate jazzcash button link
      **/
     public function generate_jazzcash_form($order_id){
-	//file_put_contents('abc.txt', "generate_jazzcash_form".PHP_EOL, FILE_APPEND);
-	
 		global $woocommerce;
 
         // Get this Order's information so that we know
         // who to charge and how much
         $customer_order = new WC_Order($order_id);
-		
-		$_ActionURL     = $this->actionURL;
-        $_MerchantID    = $this->merchantID;
-        $_Password      = $this->password;
-        $_ReturnURL     = $this->returnURL;
-        $_IntegritySalt = $this->integritySalt;
-        $_ExpiryHours   = $this->expiryHours;
-		
+			//zia
 		$items = $customer_order->get_items();
-		$product_name  = array();
+		$product_name  = "";
 		foreach ( $items as $item ) {
-			array_push($product_name, $item['name']);
+			$product_name .= $item['name'].", ";
+			//$product_id = $item['product_id'];
+			// $product_variation_id = $item['variation_id'];
 		}
-		$_Description   = implode(", ", $product_name);
-		$_Language      = 'EN';
-        $_Version       = '1.1';
-        $_Currency      = 'PKR';
-        $_BillReference = $customer_order->get_order_number();
+		
+		$_Description = trim($product_name,", ");
+		$_TxnRefNumber = "Woo". date('YmdHis');
 		$_AmountTmp = $customer_order->order_total*100;
 		$_AmtSplitArray = explode('.', $_AmountTmp);
 		$_FormattedAmount = $_AmtSplitArray[0];
+		$_ExpiryTime = date('YmdHis', strtotime("+".$this->pp_ExpiryDays." hours"));
+        $_PostUrl = $this->pp_posturl;
+		$_TXNDateTime = date('YmdHis');
+		$_BillReference = str_replace("#", "", $customer_order->get_order_number());
+		$_Securehash = $this -> pp_SecureHash;
+		$_Language = 'EN';
+		$_Version = '1.1';
+		$_TxnCurrency = 'PKR';
 		
-		date_default_timezone_set("Asia/karachi");
-        $DateTime       = new DateTime();
-        $_TxnRefNumber  = "T" . $DateTime->format('YmdHis');
-        $_TxnDateTime   = $DateTime->format('YmdHis');
-        $ExpiryDateTime = $DateTime;
-        $ExpiryDateTime->modify('+' . $_ExpiryHours . ' hours');
-        $_ExpiryDateTime = $ExpiryDateTime->format('YmdHis');
-        
-        $ppmpf1 = '1';
-        $ppmpf2 = '2';
-        $ppmpf3 = '3';
-        $ppmpf4 = '4';
-        $ppmpf5 = '5';
+		$SortedArray = $_Securehash.'&'.$_FormattedAmount.'&'.$_BillReference.'&'.$_Description
+		.'&'.$_Language.'&'.$this->pp_MerchantID.'&'.$this->pp_Password.'&'.$this->pp_ReturnURL
+		.'&'.$_TxnCurrency.'&'.$_TXNDateTime.'&'.$_ExpiryTime.'&'.$_TxnRefNumber.'&'.$_Version
+		.'&1&2&3&4&5';
 		
-		 // Populating Sorted Array
-        $SortedArrayOld = $_IntegritySalt . '&' . $_FormattedAmount . '&' . $_BillReference . '&' . $_Description . '&' . $_Language . '&' . $_MerchantID . '&' . $_Password;
-        $SortedArrayOld = $SortedArrayOld . '&' . $_ReturnURL . '&' . $_Currency . '&' . $_TxnDateTime . '&' . $_ExpiryDateTime . '&' . $_TxnRefNumber . '&' . $_Version;
-        $SortedArrayOld = $SortedArrayOld . '&' . $ppmpf1 . '&' . $ppmpf2 . '&' . $ppmpf3 . '&' . $ppmpf4 . '&' . $ppmpf5;
-        
-        //Calculating Hash
-        $_Securehash = hash_hmac('sha256', $SortedArrayOld, $_IntegritySalt);
-		
-		//file_put_contents('abc.txt', "\n=> Request: " . $SortedArrayOld, FILE_APPEND);
+		$_Securehash = hash_hmac('sha256', $SortedArray, $_Securehash);
 		
 		$jazzcash_args = array(
 			'pp_Version' => $_Version,
 			'pp_TxnType' => '',
 			'pp_Language' => $_Language,
-			'pp_MerchantID' => $_MerchantID,
+			'pp_MerchantID' => $this->pp_MerchantID,
 			'pp_SubMerchantID' => '',
-			'pp_Password' => $_Password,
+			'pp_Password' => $this->pp_Password,
 			'pp_BankID' => '',
 			'pp_ProductID' => '',
 			'pp_TxnRefNo' => $_TxnRefNumber,
 			'pp_Amount' => $_FormattedAmount,
-			'pp_TxnCurrency' => $_Currency,
-			'pp_TxnDateTime' => $_TxnDateTime,
+			'pp_TxnCurrency' => $_TxnCurrency,
+			'pp_TxnDateTime' => $_TXNDateTime,
 			'pp_BillReference' => $_BillReference,
 			'pp_Description' => $_Description,
-			'pp_TxnExpiryDateTime' => $_ExpiryDateTime,
-			'pp_ReturnURL' => $_ReturnURL,
+			'pp_TxnExpiryDateTime' => $_ExpiryTime,
+			'pp_ReturnURL' => $this->pp_ReturnURL,
 			'pp_SecureHash' => $_Securehash,
-			'ppmpf_1' => $ppmpf1,
-			'ppmpf_2' => $ppmpf2,
-			'ppmpf_3' => $ppmpf3,
-			'ppmpf_4' => $ppmpf4,
-			'ppmpf_5' => $ppmpf5
+			'ppmpf_1' => '1',
+			'ppmpf_2' => '2',
+			'ppmpf_3' => '3',
+			'ppmpf_4' => '4',
+			'ppmpf_5' => '5'
 		);
-		
-		WC()->session->set('jazzCashRequestData',  $jazzcash_args);
 		
 		$jazzcash_args_array = array();
         foreach($jazzcash_args as $key => $value){
           $jazzcash_args_array[] = "<input type='hidden' name='$key' value='$value'/>";
         }
         
-		$form  = '<form action="'.$_ActionURL.'" id="jazzcashPostForm" name="JazzCashForm" method="post">';
-		$form .= implode('', $jazzcash_args_array);
-		$form .= '</form> <script type="text/javascript"> document.getElementById("jazzcashPostForm").submit(); </script>';
-			
-		//file_put_contents('abc.txt', "generate_jazzcash_form ended".PHP_EOL, FILE_APPEND);
+		$form = '<form action="'.$_PostUrl.'" id="postform" name="JazzCashForm" method="post">
+				' . implode('', $jazzcash_args_array) . '
+			</form>
+			<script type="text/javascript">
+				document.getElementById("postform").submit();// Form submission
+			</script>';
 			
 		return $form;
-		
-		
+
 	}
 	
     /**
      * Process the payment and return the result
      **/
-   /* public function process_payment($order_id)
+    public function process_payment($order_id)
     {
         global $woocommerce;
     	$order = new WC_Order( $order_id );
         return array('result' => 'success', 'redirect' => add_query_arg('order',
-            $order->get_id(), add_query_arg('key', $order->get_id(), get_permalink(get_option('woocommerce_pay_page_id'))))
+            $order->id, add_query_arg('key', $order->order_key, get_permalink(get_option('woocommerce_pay_page_id'))))
         );
-    }*/
-	
-	
-		function process_payment($order_id) {
-		//$order = new Aelia_Order($order_id);
 		
-		global $woocommerce;
-    	$order = new WC_Order( $order_id );
-		
-
-		// Redirect to receipt page, which will contain the form that will actually
-		// bring to the Skrill portal
-		return array(
-			'result'   => 'success',
-			'redirect' => $order->get_checkout_payment_url(true),
-		);
-	}
-	
+		//session_start();
+		// $_SESSION['customer_order']=$customer_order;
+		// $_SESSION['_TxnRefNumber']=$_TxnRefNumber;
+		// $_SESSION['_FormattedAmount']=$_FormattedAmount;
+		// $_SESSION['ExpiryTime']=$ExpiryTime;	
+		// $_SESSION['post_url']=$post_url;
+		// $_SESSION['TXN_DateTime']=$TXN_DateTime;
+		// $_SESSION['Bill_Reference']=$Bill_Reference;
+		// $_SESSION['pp_version']= '1.1'; //$this->pp_Version;
+		// $_SESSION['pp_language']= 'EN'; //$this->pp_Language;
+		// $_SESSION['pp_merchantid']=$this->pp_MerchantID;
+		// $_SESSION['pp_password']=$this->pp_Password;
+		// $_SESSION['pp_txncurrency']= 'PKR'; //$this->pp_TxnCurrency;
+		// $_SESSION['pp_returnurl']=$this->pp_ReturnURL;
+		// $_SESSION['pp_securehash']=$this->pp_SecureHash;
+		// //zia
+		// $_SESSION['pp_Description']=$product_name;		
+		// //zia
+		// $customer_order->payment_complete();
+		// // $woocommerce->cart->empty_cart();
+				
+		// return array(
+		// 'result' => 'success',
+		// 'message'=> 'message',
+		//'redirect'=>'..\jazzcashcheckout'
+		//);
+    }
 	
     // Validate fields
     public function validate_fields()
@@ -276,7 +256,6 @@ class JazzCash extends WC_Payment_Gateway
     // Custom function not required by the Gateway
     public function do_ssl_check()
     {
-	//file_put_contents('abc.txt', "do_ssl_check called".PHP_EOL, FILE_APPEND);
         if ($this->enabled == "yes") {
             if (get_option('woocommerce_force_ssl_checkout') == "no") {
                 echo "<div class=\"error\"><p>" . sprintf(__("<strong>%s</strong> is enabled and WooCommerce is not forcing the SSL certificate on your checkout page. Please ensure that you have a valid SSL certificate and that you are <a href=\"%s\">forcing the checkout pages to be secured.</a>"),
@@ -284,201 +263,45 @@ class JazzCash extends WC_Payment_Gateway
                     "</p></div>";
             }
         }
-		
-			//file_put_contents('abc.txt', "do_ssl_check ended".PHP_EOL, FILE_APPEND);
     }
 
 	public function callback_handler(){
 		global $woocommerce;
-		try {
-		}
-		catch(Exception $e){
-		}
-	}
-	
-	public function jazzcash_response(){
-	//file_put_contents('abc.txt', "jazzcash_response called".PHP_EOL, FILE_APPEND);
-		global $woocommerce;
-		try {
-			$comment             = "";
-			$errorMsg            = 'Sorry! The transaction was not successful.';
-			$successFlag         = false;
-			$returnUrl           = 'checkout/onepage/success';
-			$sortedResponseArray = array();
-			if (!empty($_POST)) {
-				foreach ($_POST as $key => $val) {
-					$comment .= $key . "[" . $val . "],<br/>";
-					$sortedResponseArray[$key] = $val;
-				}
-			}
-			//file_put_contents('abc.txt', "Parameters to calculate HASH: ".$comment, FILE_APPEND);
-			$_MerchantID    = $this->merchantID;
-			$_Password      = $this->password;
-			$_IntegritySalt = $this->integritySalt;
-			$_ValidateHash 	= $this->validateHash;
-			
-			$_ResponseMessage = $this->getEmptyIfNullFromPOST('pp_ResponseMessage');
-			$_ResponseCode    = $this->getEmptyIfNullFromPOST('pp_ResponseCode');
-			$_TxnRefNo        = $this->getEmptyIfNullFromPOST('pp_TxnRefNo');
-			$_BillReference   = $this->getEmptyIfNullFromPOST('pp_BillReference');
-			$_SecureHash      = $this->getEmptyIfNullFromPOST('pp_SecureHash');
-			
-		//	file_put_contents('abc.txt', "pp_ResponseCode: ".$_ResponseCode.PHP_EOL, FILE_APPEND);
-			
-			$requestData = WC()->session->get('jazzCashRequestData');
-			
-			if (strtolower($_ValidateHash) == 'yes') {
-			//file_put_contents('abc.txt', "Validate hash: yes".PHP_EOL, FILE_APPEND);
-			
-			//file_put_contents('abc.txt', "Secure Hash: ".$_SecureHash.PHP_EOL, FILE_APPEND);
-				if (!$this->isNullOrEmptyString($_SecureHash)) {
-					//removing pp_SecureHash key
-					unset($sortedResponseArray['pp_SecureHash']);
-					//sorting array w.r.t key
-					ksort($sortedResponseArray);
-					$sortedResponseValuesArray = array();
-					//Populating Sorted Array
-					array_push($sortedResponseValuesArray, $_IntegritySalt);
-					
-					foreach ($sortedResponseArray as $key => $val) {
-						if (!$this->isNullOrEmptyString($val)) {
-							array_push($sortedResponseValuesArray, $val);
-						}
-					}
-					
-					//joining array of sorted response values 
-					$sortedResponseValuesForHash = implode('&', $sortedResponseValuesArray);
-					//Calculating Hash
-					$CalSecureHash               = hash_hmac('sha256', $sortedResponseValuesForHash, $_IntegritySalt);
-					
-					//file_put_contents('abc.txt', "Secure Hash: ".$_SecureHash.PHP_EOL, FILE_APPEND);
-					//file_put_contents('abc.txt', "Calculated Hash: ".$CalSecureHash.PHP_EOL, FILE_APPEND);
-					
-					if (strtolower($CalSecureHash) == strtolower($_SecureHash)) {
-						$isResponseOk = true;
-						//file_put_contents('abc.txt', "Secure Hash match ".PHP_EOL, FILE_APPEND);
-					} else {
-						$isResponseOk = false;
-						$comment .= "Secure Hash mismatched.";
-						//file_put_contents('abc.txt', "Secure Hash mismatch ".PHP_EOL, FILE_APPEND);
-					}
-				} else {
-					$isResponseOk = false;
-					$comment .= "Secure Hash is empty.";
-					//file_put_contents('abc.txt', "Secure Hash empty ".PHP_EOL, FILE_APPEND);
-				}
-			} else {
-				//file_put_contents('abc.txt', "Validate hash: no, sending isResponseOk = true".PHP_EOL, FILE_APPEND);
-				$isResponseOk = true;
-			}
-			
-			if($isResponseOk) {
-				if(isset($requestData)) {
-					if((strtolower($this->getEmptyIfNull($requestData['pp_TxnRefNo'])) == strtolower($this->getEmptyIfNull($sortedResponseArray['pp_TxnRefNo']))) && 
-					(strtolower($this->getEmptyIfNull($requestData['pp_TxnDateTime'])) == strtolower($this->getEmptyIfNull($sortedResponseArray['pp_TxnDateTime']))) &&
-					(strtolower($this->getEmptyIfNull($requestData['pp_MerchantID'])) == strtolower($this->getEmptyIfNull($sortedResponseArray['pp_MerchantID']))) && 
-					(strtolower($this->getEmptyIfNull($requestData['pp_BillReference'])) == strtolower($this->getEmptyIfNull($sortedResponseArray['pp_BillReference']))) &&
-					(strtolower($this->getEmptyIfNull($requestData['pp_Amount'])) == strtolower($this->getEmptyIfNull($sortedResponseArray['pp_Amount'])))) {
-						$isResponseOk = true;
-					}
-					else {
-						$isResponseOk = false;
-						$comment .= "Response integrity violated. Response values are not same as Request.";
-					}
-				}
-				else {
-					$isResponseOk = false;
-					$comment .= "Session is empty. Response integrity cannot be validated.";
-				}
-			}
-			
+		try{
+		$order_id = $_POST['pp_BillReference'];
+		$rrn = $_POST['pp_RetreivalReferenceNo'];
+		$responseCode = $_POST['pp_ResponseCode'];
+		$responseMessage = $_POST['pp_ResponseMessage'];
 
-			
-			$orderStatusCompleted = 'completed';
-            $orderStatusFailed   = 'failed';
-			$orderStatusPending  = 'pending';
-			$order = new WC_Order($_BillReference);
-			//file_put_contents('abc.txt', "isResponseOk: ".$isResponseOk.PHP_EOL, FILE_APPEND);
-			if($isResponseOk) {
-							//file_put_contents('abc.txt', "pp_ResponseCode: ".$_ResponseCode.PHP_EOL, FILE_APPEND);
-				if($_ResponseCode == '000') {
-					//file_put_contents('abc.txt', "000 called".PHP_EOL, FILE_APPEND);
-					$order->update_status($orderStatusCompleted);
-					$woocommerce->cart->empty_cart();
-				}
-				else if ($_ResponseCode == '124') {
-					//file_put_contents('abc.txt', "124 called".PHP_EOL, FILE_APPEND);
-					$order->update_status($orderStatusPending);
-					$woocommerce->cart->empty_cart();
-				}
-				else if ($_ResponseCode == '349') {
-					//file_put_contents('abc.txt', "349 called".PHP_EOL, FILE_APPEND);
-					$order->update_status($orderStatusPending);
-					$woocommerce->cart->empty_cart();
-				}
-				else {
-					//file_put_contents('abc.txt', "failed called".PHP_EOL, FILE_APPEND);
-					$order->update_status($orderStatusFailed);
-				}
-				
-				//takes customer to payment success / failure page
-				wp_redirect($this->get_return_url($order));
-				exit;
-				
-			} else {
-				//file_put_contents('abc.txt', "failed called - 2".PHP_EOL, FILE_APPEND);
-				//takes customer to payment success / failure page
-				$order->update_status($orderStatusFailed);
-				wp_redirect($this->get_return_url($order));
-				exit;
+		$order = new WC_Order( $order_id );
+		if($responseCode== '000' or $responseCode == '200' or $responseCode == '121' ){
+			$this -> msg['message'] = $responseCode . " " .$responseMessage;
+			$this -> msg['class'] = 'woocommerce_message';
+			if($order -> status == 'processing'){
+
+			}else{
+				$order -> payment_complete();
+				$order -> add_order_note($this->msg['message']);
+				$woocommerce -> cart -> empty_cart();
 			}
+		}else {
+			$this -> msg['message'] = $responseCode . " " .$responseMessage;
+			$this -> msg['class'] = 'woocommerce_message woocommerce_message_info';
+			$order -> add_order_note($this->msg['message']);;
+			$woocommerce -> cart -> empty_cart();
+		}
+		add_action('the_content', array(&$this, 'showMessage'));
 		}
 		catch(Exception $e){
-			//file_put_contents('abc.txt', "jazzcash_response exception".PHP_EOL, FILE_APPEND);
-			//takes customer to payment success / failure page
-			wp_redirect($this->get_return_url($order));
-			exit;
+			// $errorOccurred = true;
+			$msg = "Error";
 		}
-		
-			//file_put_contents('abc.txt', "jazzcash_response ended".PHP_EOL, FILE_APPEND);
-		
-	}
-	
-	
-		protected function complete_order($order, $posted_data) {
-		// Add order note upon successful completion of payment
-		$approval_code = get_value('approval_code', $posted_data);
-		$order->payment_complete();
-		$this->woocommerce()->cart->empty_cart();
 	}
 	
 	
 	function showMessage($content){
 		return '<div class="box '.$this -> msg['class'].'-box">'.$this -> msg['message'].'</div>'.$content;
 	}
-	
-	protected function isNullOrEmptyString($question)
-    {
-        return (!isset($question) || trim($question) === '');
-    }
-    
-    protected function getEmptyIfNullFromPOST($key)
-    {
-        if (!isset($_POST[$key]) || trim($_POST[$key]) == "") {
-            return "";
-        } else {
-            return $_POST[$key];
-        }
-    }
-
-    protected function getEmptyIfNull($key)
-    {
-        if (!isset($key) || trim($key) == "") {
-            return "";
-        } else {
-            return $key;
-        }
-    }
 	
 } // End of JazzCash
 ?>
