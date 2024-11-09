@@ -26,4 +26,4 @@ Please make sure to update tests as appropriate.
 [https://wordpress.org/plugins/jazzcash-woocommerce-gateway/](https://wordpress.org/plugins/jazzcash-woocommerce-gateway/)
 
 ## License
-[MIT](https://choosealicense.com/licenses/mit/)
+[ GPL-3.0 license](https://choosealicense.com/licenses/gpl-3.0/)
