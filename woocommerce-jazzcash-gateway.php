@@ -3,7 +3,7 @@
 Plugin Name: JazzCash - WooCommerce Gateway
 Plugin URI: https://jazzcash.com.pk/digital-payments/online-payments/
 Description: Extends WooCommerce by Adding the JazzCash Payment Gateway.
-Version: 1.0
+Version: 2.0
 Author: JC Development Team
 Author URI: https://jazzcash.com.pk/
 */
@@ -14,7 +14,11 @@ function jazzcash_init() {
 	// If the parent WC_Payment_Gateway class doesn't exist
 	// it means WooCommerce is not installed on the site
 	// so do nothing
-	if ( ! class_exists( 'WC_Payment_Gateway' ) ) return;
+	if ( ! class_exists( 'WC_Payment_Gateway' ) ) 
+	{
+		return;
+	}
+	
 	
 	// If we made it this far, then include our Gateway Class
 	include_once( 'woocommerce-jazzcash.php' );
