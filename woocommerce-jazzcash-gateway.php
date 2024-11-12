@@ -10,15 +10,14 @@ Author URI: https://jazzcash.com.pk/
 
 // Include our Gateway Class and register Payment Gateway with WooCommerce
 add_action( 'plugins_loaded', 'jazzcash_init', 0 );
-function jazzcash_init() {
+function jazzcash_init()
+{
 	// If the parent WC_Payment_Gateway class doesn't exist
 	// it means WooCommerce is not installed on the site
 	// so do nothing
-	if ( ! class_exists( 'WC_Payment_Gateway' ) ) 
-	{
+	if ( ! class_exists( 'WC_Payment_Gateway' ) ) {
 		return;
 	}
-	
 	
 	// If we made it this far, then include our Gateway Class
 	include_once( 'woocommerce-jazzcash.php' );
@@ -34,7 +33,8 @@ function jazzcash_init() {
 
 // Add custom action links
 add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'jazzcash_action_links' );
-function jazzcash_action_links( $links ) {
+function jazzcash_action_links( $links )
+{
 	$plugin_links = array(
 		'<a href="' . admin_url( 'admin.php?page=wc-settings&tab=checkout' ) . '">' . __( 'Settings', 'jazzcash' ) . '</a>',
 	);
