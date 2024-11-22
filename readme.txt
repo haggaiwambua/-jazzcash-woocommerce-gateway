@@ -1,5 +1,5 @@
 === WooCommerce JazzCash Gateway Plugin ===
-Contributors: JCDevelopers
+Contributors: Haggai Wambua
 Tags: woocommerce, jazzcash
 Requires at least: 4.4
 Tested up to: 4.9.8
@@ -7,11 +7,7 @@ Stable tag: 2.1
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 
-Allows WooCommerce to accept payments using JazzCash gateway.
-
- == Upgrade Notice ==
-
-This is an upgrade of WooCommerce JazzCash Gateway Plugin version 2.0
+Allows WooCommerce to accept payments using JazzCash payment gateway.
 
 == Description ==
 
