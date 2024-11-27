@@ -28,6 +28,7 @@ class WC_Gateway_JazzCash extends WC_Payment_Gateway
         }
 
         add_action('woocommerce_api_wc_gateway_jazzcash', [$this, 'handle_return']);
+        add_action('woocommerce_receipt_' . $this->id, [$this, 'receipt_page']);
     }
 
     public function init_form_fields()
@@ -91,105 +92,24 @@ class WC_Gateway_JazzCash extends WC_Payment_Gateway
             ?>
             <div id="custom_input">
                 <label class="container-jc" id="lable_MIGS">
-                    <input type="radio" name="TxnType" value="MPAY">Card Payment<br>
+                    <input type="radio" name="TxnType" value="MPAY" checked>Card Payment<br>
                 </label>
-                <div id="jazzcash-card-fields" class="text-for-jc" style="display: none;">
-                    <label for="jazzcash-card-number"><?php esc_html_e('Card Number', 'woocommerce-jazzcash'); ?></label>
-                    <input id="jazzcash-card-number" name="jazzcash_card_number" type="text" maxlength="16" placeholder="4111 1111 1111 1111" />
-
-                    <label for="jazzcash-expiry"><?php esc_html_e('Expiry Date (MMYY)', 'woocommerce-jazzcash'); ?></label>
-                    <input id="jazzcash-expiry" name="jazzcash_expiry" type="text" maxlength="4" placeholder="MMYY" />
-
-                    <label for="jazzcash-cvv"><?php esc_html_e('CVV', 'woocommerce-jazzcash'); ?></label>
-                    <input id="jazzcash-cvv" name="jazzcash_cvv" type="text" maxlength="3" placeholder="123" />
-
-                    <label for="jazzcash-cnic"><?php esc_html_e('Last 6 digits of CNIC number', 'woocommerce-jazzcash'); ?></label>
-                    <input id="jazzcash-cnic" name="jazzcash_card_cnic" type="text" maxlength="6" placeholder="345678" />
-                </div>
                 <label class="container-jc" id="lable_MWALLET">
                 	<input type="radio" name="TxnType" value="MWALLET">Mobile Account<br>
                 </label>
-                <div id="jazzcash-wallet-fields" class="text-for-jc" style="display: none;">
-                    <label for="jazzcash-mobile-number"><?php esc_html_e('Mobile Number', 'woocommerce-jazzcash'); ?></label>
-                    <input id="jazzcash-mobile-number" name="jazzcash_mobile_number" type="text" maxlength="11" placeholder="03411728699" />
-
-                    <label for="jazzcash-cnic"><?php esc_html_e('Last 6 digits of CNIC number', 'woocommerce-jazzcash'); ?></label>
-                    <input id="jazzcash-cnic" name="jazzcash_cnic" type="text" maxlength="6" placeholder="345678" />
-                </div>
-                <!--<label class="container-jc" id="lable_OTC">
+                <label class="container-jc" id="lable_OTC">
 	                <input type="radio" name="TxnType" value="OTC">Voucher Payment
                 </label>
-                <div id="jazzcash-voucher-fields" class="text-for-jc" style="display: none;">
-                    <label for="jazzcash-voucher-number"><?php esc_html_e('Voucher Number', 'woocommerce-jazzcash'); ?></label>
-                    <input id="jazzcash-voucher-number" name="jazzcash_voucher_number" type="text" maxlength="12" placeholder="03122036440" />
-                </div> -->
-                <!-- Spinner -->
-                <div id="jazzcash-loader" style="display: none;">
-                    <img src="<?php echo plugins_url('assets/images/loading.png', dirname(__FILE__)); ?>" alt="<?php esc_attr_e('Processing payment...', 'woocommerce'); ?>" />
-                    <p><?php esc_html_e('Processing payment, please wait...', 'woocommerce'); ?></p>
-                </div>
             </div>
-        <script>
-            document.querySelectorAll('input[name="TxnType"]').forEach((el) => {
-                el.addEventListener('change', (e) => {
-                    const cardFields = document.getElementById('jazzcash-card-fields');
-                    const walletFields = document.getElementById('jazzcash-wallet-fields');
-                    const voucherFields = document.getElementById('jazzcash-voucher-fields');
-                    if (e.target.value === 'MPAY') {
-                        walletFields.style.display = 'none';
-                        //voucherFields.style.display = 'none';
-                        cardFields.style.display = 'block';
-                    }
-                    if (e.target.value === 'MWALLET') {
-                        cardFields.style.display = 'none';
-                        //voucherFields.style.display = 'none';
-                        walletFields.style.display = 'block';
-                    }
-                    /*if (e.target.value === 'OTC') {
-                        cardFields.style.display = 'none';
-                        walletFields.style.display = 'none';
-                        voucherFields.style.display = 'block';
-                    }*/
-                });
-            });
-        </script>
         <?php
     }
 
-    public function validate_fields() {
-        $payment_method = sanitize_text_field($_POST['TxnType']);
-
-        if ($payment_method === 'MPAY') {
-            if (empty($_POST['jazzcash_card_number']) || empty($_POST['jazzcash_expiry']) || empty($_POST['jazzcash_cvv'])) {
-                wc_add_notice(__('Please complete all card payment fields.', 'woocommerce-jazzcash'), 'error');
-                return false;
-            }
-        }
-
-        if ($payment_method === 'MWALLET') {
-            if (empty($_POST['jazzcash_mobile_number']) || empty($_POST['jazzcash_cnic'])) {
-                wc_add_notice(__('Please complete all mobile account payment fields.', 'woocommerce-jazzcash'), 'error');
-                return false;
-            }
-        }
-
-        if ($payment_method === 'OTC') {
-            if (empty($_POST['jazzcash_voucher_number'])) {
-                wc_add_notice(__('Please fill the voucher number.', 'woocommerce-jazzcash'), 'error');
-                return false;
-            }
-        }
-
-        return true;
+    public function receipt_page($order_id) {
+        $this->generate_jazzcash_form($order_id);
     }
-	
-    /**
-     * Process the payment and return the result
-     **/
-    public function process_payment($order_id)
-    {
+
+    public function generate_jazzcash_form($order_id) {
         global $wpdb;
-        global $woocommerce;
         $order = new WC_Order( $order_id );
 
         $amount = $order->get_total();
@@ -199,7 +119,7 @@ class WC_Gateway_JazzCash extends WC_Payment_Gateway
 
         $DateTime       = new DateTime();
         $DateTime->setTimezone(new DateTimeZone('Asia/karachi'));
-        $_TxnRefNumber  = "T" . $DateTime->format('YmdHis');
+        $_TxnRefNumber  = "T" . $DateTime->format('YmdHis') . mt_rand(10, 100);
         $_TxnDateTime   = $DateTime->format('YmdHis');
 
         $items = $order->get_items();
@@ -218,8 +138,10 @@ class WC_Gateway_JazzCash extends WC_Payment_Gateway
             'pp_TxnType' => $payment_type,
             'pp_Language' => 'EN',
             'pp_MerchantID' => $this->merchantID,
-            'pp_SubMerchantID' => null,
+            'pp_SubMerchantID' => '',
             'pp_Password' => $this->password,
+            'pp_BankID' => '',
+            'pp_ProductID' => '',
             'pp_TxnRefNo' => $_TxnRefNumber,
             'pp_Amount' => round($amount * 100),
             'pp_TxnCurrency' => 'PKR',
@@ -228,34 +150,12 @@ class WC_Gateway_JazzCash extends WC_Payment_Gateway
             'pp_Description' => $_Description,
             'pp_TxnExpiryDateTime' => $_ExpiryDateTime,
             'pp_ReturnURL' => $return_url,
-            'pp_UsageMode' => 'API',
             'ppmpf_1' => '1',
             'ppmpf_2' => '2',
             'ppmpf_3' => '3',
             'ppmpf_4' => '4',
             'ppmpf_5' => '5'
         ];
-
-        if ($payment_type === 'MPAY') {
-            $payload['pp_Version'] = '2.0';
-            $payload['pp_IsRegisteredCustomer'] = 'yes';
-            $payload['pp_ShouldTokenizeCardNumber'] = 'yes';
-            $payload['pp_CustomerID'] = $order->get_customer_id();
-            $payload['pp_CustomerEmail'] = $order->get_billing_email();
-            $payload['pp_CustomerMobile'] = $order->get_billing_phone();
-            $payload['pp_MobileNumber'] = $order->get_billing_phone();
-            $payload['pp_CNIC'] = sanitize_text_field($_POST['jazzcash_card_cnic']);
-            $payload['pp_CustomerCardNumber'] = sanitize_text_field($_POST['jazzcash_card_number']);
-            $payload['pp_CustomerCardExpiry'] = sanitize_text_field($_POST['jazzcash_expiry']);
-            $payload['pp_CustomerCardCvv'] = sanitize_text_field($_POST['jazzcash_cvv']);
-        } elseif ($payment_type === 'MWALLET') {
-            $payload['pp_Version'] = '2.0';
-            $payload['pp_MobileNumber'] = sanitize_text_field($_POST['jazzcash_mobile_number']);
-            $payload['pp_CNIC'] = sanitize_text_field($_POST['jazzcash_cnic']);
-            $payload['pp_DiscountedAmount'] = round($amount * 100);
-        } elseif ($payment_type === 'OTC') {
-            $payload['ppmpf_1'] = sanitize_text_field($_POST['jazzcash_voucher_number']);
-        }
 
         $payload['pp_SecureHash'] = $this->generate_secure_hash($payload);
 
@@ -275,53 +175,51 @@ class WC_Gateway_JazzCash extends WC_Payment_Gateway
         );
 
         $gateway_url = $this->sandboxMode
-        ? 'https://sandbox.jazzcash.com.pk/ApplicationAPI/API/2.0/Purchase/domwallettransaction'
-        : 'https://payments.jazzcash.com.pk/ApplicationAPI/API/2.0/Purchase/domwallettransaction';
+            ? 'https://sandbox.jazzcash.com.pk/CustomerPortal/transactionmanagement/merchantform'
+            : 'https://payments.jazzcash.com.pk/CustomerPortal/transactionmanagement/merchantform';
 
-        $response = wp_remote_post($gateway_url, [
-            'method'    => 'POST',
-            'timeout'   => 45,
-            'headers'   => ['Content-Type' => 'application/x-www-form-urlencoded'],
-            'body'      => http_build_query($payload),
-        ]);
-    
-        if (is_wp_error($response)) {
-            wc_add_notice(__('Payment error: Could not connect to JazzCash.', 'woocommerce-jazzcash'), 'error');
-            return;
+        // Display the redirect message and form
+        echo '<p>' . __('Please wait while we redirect you to JazzCash...', 'woocommerce') . '</p>';
+        echo '<form id="jazzcash-form" action="' . esc_url($gateway_url) . '" method="POST">';
+        foreach ($payload as $key => $value) {
+            echo '<input type="hidden" name="' . esc_attr($key) . '" value="' . esc_attr($value) . '">';
         }
+        echo '</form>';
+        echo '<script>
+            setTimeout(function() {
+                document.getElementById("jazzcash-form").submit();
+            }, 1000);
+          </script>';
+    }
+	
+    /**
+     * Process the payment and return the result
+     **/
+    public function process_payment($order_id)
+    {
+        $order = wc_get_order($order_id);
 
-        $response_body = wp_remote_retrieve_body($response);
-        $response_data = json_decode($response_body, true);
+        // Mark the order as pending payment
+        $order->update_status('pending', __('Awaiting JazzCash payment', 'woocommerce-jazzcash'));
 
-        if ($response_data['pp_ResponseCode'] === '000') {
-            $order->payment_complete();
-            $order->add_order_note(__('JazzCash payment successful.', 'woocommerce'));
-            $woocommerce->cart->empty_cart();
-
-            return [
-                'result' => 'success',
-                'redirect' => $order->get_checkout_order_received_url(),
-            ];
-        } else {
-            if (array_key_exists('pp_ResponseMessage', $response_data)){
-                wc_add_notice(__('Payment error: ' . $response_data['pp_ResponseMessage'], 'error'));
-            } else {
-                wc_add_notice(__('Payment error: ' . $response_data['message'], 'error'));
-            }
-            return;
-        }
+        // Redirect to the receipt page
+        return [
+            'result' => 'success',
+            'redirect' => $order->get_checkout_payment_url(true),
+        ];
 	}
 
     private function generate_secure_hash($params) {
-        ksort($params);
-        $string_to_hash = $this->integritySalt . '&' . implode('&', $params);
+        $payload = array_filter($params);
+        ksort($payload);
+        $string_to_hash = $this->integritySalt . '&' . implode('&', $payload);
         return strtoupper(hash_hmac('sha256', $string_to_hash, $this->integritySalt));
     }
 	
 	public function handle_return() {
         global $wpdb;
         global $woocommerce;
-        $response = $_POST;e));
+        $response = $_POST;
 
         $secure_hash = $response['pp_SecureHash'];
         unset($response['pp_SecureHash']);
